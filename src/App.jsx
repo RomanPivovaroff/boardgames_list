@@ -1,10 +1,16 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 
 const BASE = import.meta.env.BASE_URL
 const DEFAULT_IMG = 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcREUb6gYA6ne8sBfhrmaNRS5OVSKkkG68_AeMBL15BF4Q&s=10'
 const FALLBACK = BASE + 'placeholder.svg'
+const PER_PAGE = 24
 
-const hashId = () => (location.hash.match(/^#\/g\/(.+)$/) || [])[1]
+// hash может прийти percent-кодированным (#/g/%D1%82...) — декодируем и сравниваем с id
+const hashId = () => {
+  const m = location.hash.match(/^#\/g\/(.+)$/)
+  if (!m) return undefined
+  try { return decodeURIComponent(m[1]) } catch { return m[1] }
+}
 const players = g => g.playersMin ? (g.playersMax && g.playersMax !== g.playersMin ? `${g.playersMin}–${g.playersMax}` : g.playersMin) : '—'
 
 function Cover({ game, className }) {
@@ -29,6 +35,7 @@ export default function App() {
   const [diff, setDiff] = useState('')
   const [genre, setGenre] = useState('')
   const [openId, setOpenId] = useState(hashId())
+  const [page, setPage] = useState(1)
 
   const close = () => { history.pushState(null, '', location.pathname + location.search); setOpenId(undefined) }
 
@@ -39,6 +46,8 @@ export default function App() {
     addEventListener('hashchange', h); addEventListener('keydown', k)
     return () => { removeEventListener('hashchange', h); removeEventListener('keydown', k) }
   }, [])
+  // при смене фильтров — на первую страницу
+  useEffect(() => { setPage(1) }, [q, count, diff, genre])
 
   const genres = useMemo(() => [...new Set(games.flatMap(g => g.genres))].sort(), [games])
   const list = useMemo(() => games.filter(g =>
@@ -48,7 +57,15 @@ export default function App() {
     (!genre || g.genres.includes(genre))
   ), [games, q, count, diff, genre])
 
+  const pages = Math.max(1, Math.ceil(list.length / PER_PAGE))
+  const cur = Math.min(page, pages)
+  const shown = list.slice((cur - 1) * PER_PAGE, cur * PER_PAGE)
+
   const open = games.find(g => g.id === openId)
+
+  const goto = p => { setPage(p); window.scrollTo(0, 0) }
+  // номера страниц: первая, последняя и соседние с текущей, между ними «…»
+  const nums = [...new Set([1, pages, cur - 1, cur, cur + 1].filter(p => p >= 1 && p <= pages))].sort((a, b) => a - b)
 
   return (
     <>
@@ -75,7 +92,7 @@ export default function App() {
       <main>
         {games.length > 0 && list.length === 0 && <p className="empty">Ничего не найдено. Попробуйте убрать один из фильтров.</p>}
         <div className="grid">
-          {list.map(g => (
+          {shown.map(g => (
             <a key={g.id} className="card" href={`#/g/${g.id}`}>
               <Cover game={g} className="cover" />
               <div className="body">
@@ -85,6 +102,19 @@ export default function App() {
             </a>
           ))}
         </div>
+        {pages > 1 && (
+          <nav className="pager" aria-label="Страницы">
+            <button disabled={cur === 1} onClick={() => goto(cur - 1)} aria-label="Назад">←</button>
+            {nums.map((p, i) => (
+              <Fragment key={p}>
+                {i > 0 && p - nums[i - 1] > 1 && <span className="gap">…</span>}
+                <button className={p === cur ? 'on' : ''} onClick={() => goto(p)}>{p}</button>
+              </Fragment>
+            ))}
+            <button disabled={cur === pages} onClick={() => goto(cur + 1)} aria-label="Вперёд">→</button>
+          </nav>
+        )}
+        {pages > 1 && <p className="total">Показано {shown.length} из {list.length} игр</p>}
       </main>
 
       {open && (

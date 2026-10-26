@@ -24,6 +24,13 @@ h2{font:500 16px/1.25 'Unbounded',sans-serif;margin:0 0 10px}
 .dots{display:inline-flex;gap:3px}.dots i{width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.2}
 .dots i.on{background:var(--magenta);opacity:1}
 .empty{text-align:center;padding:60px 0;opacity:.7}
+.pager{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;align-items:center;margin:30px 0 0}
+.pager button{border:1px solid rgba(107,95,191,.3);background:var(--card);color:inherit;border-radius:12px;min-width:42px;height:42px;padding:0 12px;font:600 15px/1 'Golos Text',system-ui,sans-serif;cursor:pointer}
+.pager button:hover:not(:disabled):not(.on){border-color:var(--magenta);box-shadow:0 0 0 1px var(--magenta)}
+.pager button.on{background:var(--grad);border-color:transparent;color:#fff}
+.pager button:disabled{opacity:.35;cursor:default}
+.pager .gap{opacity:.5;padding:0 2px}
+.total{text-align:center;font-size:14px;opacity:.6;margin:12px 0 0}
 .overlay{position:fixed;inset:0;background:rgba(23,19,42,.65);display:grid;place-items:center;padding:16px;z-index:10;overflow:auto}
 .modal{position:relative;background:var(--card);border-radius:28px;max-width:820px;width:100%;display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);overflow:hidden;animation:pop .18s ease-out}
 @keyframes pop{from{transform:scale(.96);opacity:0}}
