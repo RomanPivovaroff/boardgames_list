@@ -12,9 +12,10 @@ const hashId = () => {
   try { return decodeURIComponent(m[1]) } catch { return m[1] }
 }
 const players = g => g.playersMin ? (g.playersMax && g.playersMax !== g.playersMin ? `${g.playersMin}–${g.playersMax}` : g.playersMin) : '—'
+const isUrl = s => !!s && s.startsWith('http')
 
-function Cover({ game, className }) {
-  const first = game.image || DEFAULT_IMG
+function Cover({ game, className, noDefault }) {
+  const first = game.image || (noDefault ? FALLBACK : DEFAULT_IMG)
   const [src, setSrc] = useState(first)
   useEffect(() => setSrc(first), [first])
   // картинка из таблицы → картинка по умолчанию → локальная заглушка
@@ -37,6 +38,8 @@ export default function App() {
   const [openId, setOpenId] = useState(hashId())
   const [page, setPage] = useState(1)
 
+  const base = useMemo(() => games.filter(g => !g.parentId), [games])
+
   const close = () => { history.pushState(null, '', location.pathname + location.search); setOpenId(undefined) }
 
   useEffect(() => { fetch(BASE + 'games.json').then(r => r.json()).then(setGames) }, [])
@@ -50,12 +53,14 @@ export default function App() {
   useEffect(() => { setPage(1) }, [q, count, diff, genre])
 
   const genres = useMemo(() => [...new Set(games.flatMap(g => g.genres))].sort(), [games])
-  const list = useMemo(() => games.filter(g =>
-    (!q || (g.name + g.description + g.publisher).toLowerCase().includes(q.toLowerCase())) &&
+  // поиск ищет и по дополнениям — если доп совпал, показываем базовую игру
+  const hay = g => (g.name + ' ' + g.publisher + ' ' + g.description + ' ' + (g.owner || '') + ' ' + (g.expansions || []).map(e => e.name + ' ' + e.description + ' ' + e.publisher).join(' ')).toLowerCase()
+  const list = useMemo(() => base.filter(g =>
+    (!q || hay(g).includes(q.toLowerCase())) &&
     (!count || (g.playersMin <= +count && +count <= (g.playersMax || g.playersMin))) &&
     (!diff || g.difficulty === +diff) &&
     (!genre || g.genres.includes(genre))
-  ), [games, q, count, diff, genre])
+  ), [base, games, q, count, diff, genre])
 
   const pages = Math.max(1, Math.ceil(list.length / PER_PAGE))
   const cur = Math.min(page, pages)
@@ -70,8 +75,11 @@ export default function App() {
   return (
     <>
       <header className="hero">
+        <a className="logo" href="https://vk.ru/geekmo" target="_blank" rel="noreferrer" title="GEEKMÖ во ВКонтакте">
+          <img src={BASE + 'logo.png'} alt="GEEKMÖ" />
+        </a>
         <h1>Игротека</h1>
-        <p>{games.length ? `${games.length} настолок. Найдите игру под вашу компанию.` : 'Загружаем игры…'}</p>
+        <p>{base.length ? `${base.length} настолок. Найдите игру под вашу компанию.` : 'Загружаем игры…'}</p>
         <div className="filters">
           <input type="search" placeholder="Название или описание" value={q} onChange={e => setQ(e.target.value)} />
           <select value={count} onChange={e => setCount(e.target.value)}>
@@ -95,9 +103,11 @@ export default function App() {
           {shown.map(g => (
             <a key={g.id} className="card" href={`#/g/${g.id}`}>
               <Cover game={g} className="cover" />
+              {g.expansions?.length > 0 && <span className="exp-badge">+ {g.expansions.length} доп.</span>}
               <div className="body">
                 <h2>{g.name}</h2>
                 <div className="meta"><span>{players(g)} игр.</span><span>{g.timeLabel || '—'}</span>{g.difficulty && <Dots n={g.difficulty} />}</div>
+                {g.owner && <span className="owner" title="Владелец игры">{g.owner}</span>}
               </div>
             </a>
           ))}
@@ -124,6 +134,7 @@ export default function App() {
             <Cover game={open} className="modal-cover" />
             <div className="modal-body">
               <h2>{open.name}</h2>
+              {open.parentId && <p className="pub">Дополнение к игре «{games.find(x => x.id === open.parentId)?.name}»</p>}
               {open.publisher && <p className="pub">{open.publisher}</p>}
               <div className="tags">{open.genres.map(t => <button key={t} onClick={() => { setGenre(t); close() }}>{t}</button>)}</div>
               <dl>
@@ -131,9 +142,29 @@ export default function App() {
                 <div><dt>Партия</dt><dd>{open.timeLabel || '—'}</dd></div>
                 <div><dt>Освоение</dt><dd>{open.learn || '—'}</dd></div>
                 <div><dt>Сложность</dt><dd>{open.difficulty ? <Dots n={open.difficulty} /> : '—'}</dd></div>
+                {open.owner && <div><dt>Владелец</dt><dd>{open.owner}</dd></div>}
               </dl>
               <p>{open.description}</p>
-              {open.rulesUrl.startsWith('http') && <a className="btn" href={open.rulesUrl} target="_blank" rel="noreferrer">Читать правила</a>}
+              {open.expansions?.length > 0 && (
+                <div className="expansions">
+                  <h3>Дополнения</h3>
+                  {open.expansions.map(e => (
+                    <a key={e.id} className="exp-card" href={`#/g/${e.id}`}>
+                      <Cover game={e} className="exp-cover" noDefault />
+                      <span className="exp-info">
+                        <strong>{e.name}</strong>
+                        {e.description && <small>{e.description}</small>}
+                      </span>
+                    </a>
+                  ))}
+                </div>
+              )}
+              {(isUrl(open.rulesUrl) || isUrl(open.gameUrl)) && (
+                <div className="btn-row">
+                  {isUrl(open.rulesUrl) && <a className="btn" href={open.rulesUrl} target="_blank" rel="noreferrer">Читать правила</a>}
+                  {isUrl(open.gameUrl) && <a className="btn ghost" href={open.gameUrl} target="_blank" rel="noreferrer">Подробнее об игре</a>}
+                </div>
+              )}
             </div>
           </article>
         </div>

@@ -18,6 +18,27 @@ const get = (row, ...names) => {
   }
   return ''
 }
+// как get, но из всех подходящих колонок предпочитает значение, начинающееся с http
+// (для ссылок: красивая колонка с текстом «Правила» + служебная с URL, или просто URL в одной)
+const getHttp = (row, ...names) => {
+  const rest = []
+  for (const n of names) {
+    for (const k of Object.keys(row)) {
+      if (!k.toLowerCase().startsWith(n.toLowerCase()) || !row[k]?.trim()) continue
+      const v = row[k].trim()
+      if (v.toLowerCase().startsWith('http')) return v
+      rest.push(v)
+    }
+  }
+  return rest[0] || ''
+}
+// Обложка: колонок «Коробка…» может быть несколько (со вставленной картинкой и с URL).
+// CSV вставленную в ячейку картинку не выгружает (там пусто), поэтому берём значение-ссылку
+// из любой колонки с префиксом «Коробка/Картинка»; текст вроде «ящик 3» ссылкой не считается.
+const getImage = row => {
+  const v = getHttp(row, 'Коробка', 'Картинка')
+  return v.toLowerCase().startsWith('http') ? v : ''
+}
 const range = s => {
   const m = s.match(/(\d+)\s*[–—-]\s*(\d+)/)
   if (m) return [+m[1], +m[2]]
@@ -46,10 +67,27 @@ const games = data.map(r => {
     timeLabel: get(r, 'Время партии'), timeMin: tMin, timeMax: tMax,
     learn: get(r, 'Время освоения'),
     description: get(r, 'Описание'),
-    rulesUrl: get(r, 'Ссылка на правила', 'Правила'),
-    image: get(r, 'Коробка', 'Картинка'),
+    rulesUrl: getHttp(r, 'Ссылка на правила', 'Правила'),
+    gameUrl: getHttp(r, 'Ссылка на игру', 'Игра'),
+    image: getImage(r),
+    owner: get(r, 'Владелец'),
+    parentTitle: get(r, 'Дополнение к', 'Дополнение'),
   }
 }).filter(Boolean)
 
+// Дополнения: строка с заполненной «Дополнение к <название базовой игры>» прицепляется к базовой.
+// publisher/жанры наследуются от базы, если не заполнены. Родитель не найден — остаётся обычной игрой.
+const byId = new Map(games.map(g => [g.id, g]))
+for (const g of games) {
+  if (!g.parentTitle) continue
+  const p = byId.get(slug(g.parentTitle))
+  g.parentTitle = undefined
+  if (!p || p === g) continue
+  g.parentId = p.id
+  p.expansions = p.expansions || []
+  p.expansions.push(g)
+  if (!g.publisher) g.publisher = p.publisher
+  if (!g.genres.length) g.genres = [...p.genres]
+}
 writeFileSync('public/games.json', JSON.stringify(games, null, 1))
 console.log(`Игр: ${games.length}`)
