@@ -134,7 +134,14 @@ export default function App() {
             <Cover game={open} className="modal-cover" />
             <div className="modal-body">
               <h2>{open.name}</h2>
-              {open.parentId && <p className="pub">Дополнение к игре «{games.find(x => x.id === open.parentId)?.name}»</p>}
+              {open.parentId && (() => {
+                const p = games.find(x => x.id === open.parentId)
+                return p && (
+                  <a className="back-btn" href={`#/g/${p.id}`} title={`Дополнение к игре «${p.name}»`}>
+                    ← Дополнение к «{p.name}»
+                  </a>
+                )
+              })()}
               {open.publisher && <p className="pub">{open.publisher}</p>}
               <div className="tags">{open.genres.map(t => <button key={t} onClick={() => { setGenre(t); close() }}>{t}</button>)}</div>
               <dl>

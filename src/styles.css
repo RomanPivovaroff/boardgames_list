@@ -45,6 +45,9 @@ h2{font:500 16px/1.25 'Unbounded',sans-serif;margin:0 0 10px}
 .modal-body{padding:28px}
 .modal-body h2{font-size:22px;margin-bottom:4px}
 .pub{margin:0 0 12px;opacity:.65}
+.back-btn{display:block;width:max-content;max-width:100%;margin:0 0 12px;padding:8px 14px;border:2px solid rgba(240,40,127,.45);border-radius:14px;color:var(--magenta);text-decoration:none;font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.back-btn:hover{border-color:var(--magenta);background:rgba(240,40,127,.08)}
+@media (prefers-color-scheme:dark){.back-btn{color:#f39ac4;border-color:rgba(243,154,196,.45)}.back-btn:hover{background:rgba(243,154,196,.1)}}
 .tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
 .tags button{border:0;border-radius:99px;padding:4px 12px;background:rgba(107,95,191,.16);color:inherit;font:inherit;font-size:13px;cursor:pointer}
 dl{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:0 0 16px}
