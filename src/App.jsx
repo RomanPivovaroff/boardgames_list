@@ -7,6 +7,9 @@ const PER_PAGE = 24
 const FORM_BUG = 'https://docs.google.com/forms/d/e/1FAIpQLSfsUXvNeOfWM6ovJp7oLoK1g9YcchuaqFQEQk4wC-O8kpC_bA/viewform'
 const FORM_ORDER = 'https://docs.google.com/forms/d/e/1FAIpQLSfjtsGoeGJWrunl71AMuaZQ70SMXYoJi3KNEKeYK1NHFopozQ/viewform'
 const GITHUB = 'https://github.com/RomanPivovaroff/boardgames_list'
+// URL веб-приложения Apps Script (скрипт пишет «+» в колонку «Заказ» таблицы).
+// Вставь свой /exec URL после деплоя скрипта (см. apps-script-order.gs); пока пусто — кнопки заказа скрыты.
+const SCRIPT_URL = import.meta.env.VITE_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbwwZPk433Ch07_NJwqodoHHABTGLocufEA_JkUYUes17j9fw_zzbtkHDcN2jAGbHynX/exec'
 
 // hash может прийти percent-кодированным (#/g/%D1%82...) — декодируем и сравниваем с id
 const hashId = () => {
@@ -41,6 +44,9 @@ export default function App() {
   const [openId, setOpenId] = useState(hashId())
   const [page, setPage] = useState(1)
   const [info, setInfo] = useState(false)
+  // заказы: orderedIds — подтверждённые/оптимистичные, orderState — «sending»/«failed» на время запроса
+  const [orderedIds, setOrderedIds] = useState(() => new Set())
+  const [orderState, setOrderState] = useState({})
 
   const base = useMemo(() => games.filter(g => !g.parentId), [games])
 
@@ -80,6 +86,20 @@ export default function App() {
   const open = games.find(g => g.id === openId)
 
   const goto = p => { setPage(p); window.scrollTo(0, 0) }
+  const isOrdered = g => g.ordered || orderedIds.has(g.id)
+  // заказ: POST на Apps Script, который ставит «+» в колонку «Заказ»; плашка ставится сразу, без ожидания ответа
+  const order = g => {
+    if (!SCRIPT_URL || isOrdered(g) || orderState[g.id] === 'sending') return
+    const clear = s => { const n = { ...s }; delete n[g.id]; return n }
+    setOrderState(s => ({ ...s, [g.id]: 'sending' }))
+    fetch(SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ name: g.name }) })
+      .then(r => { if (!r.ok) throw 0; return r.json() })
+      .then(j => { if (!j.ok) throw 0; setOrderedIds(prev => new Set(prev).add(g.id)); setOrderState(clear) })
+      .catch(() => {
+        setOrderState(s => ({ ...s, [g.id]: 'failed' }))
+        setTimeout(() => setOrderState(clear), 4000)
+      })
+  }
   // номера страниц: первая, последняя и соседние с текущей, между ними «…»
   const nums = [...new Set([1, pages, cur - 1, cur, cur + 1].filter(p => p >= 1 && p <= pages))].sort((a, b) => a - b)
 
@@ -94,7 +114,6 @@ export default function App() {
         </a>
         <h1>Игротека</h1>
         <p>{base.length ? `${base.length} настолок. Найдите игру под вашу компанию.` : 'Загружаем игры…'}</p>
-        <a className="cta" href={FORM_ORDER} target="_blank" rel="noreferrer">Заказать игру</a>
         <div className="filters">
           <input type="search" placeholder="Название или описание" value={q} onChange={e => setQ(e.target.value)} />
           <select value={count} onChange={e => setCount(e.target.value)}>
@@ -119,6 +138,7 @@ export default function App() {
             <a key={g.id} className="card" href={`#/g/${g.id}`}>
               <Cover game={g} className="cover" />
               {g.expansions?.length > 0 && <span className="exp-badge">+ {g.expansions.length} доп.</span>}
+              {isOrdered(g) && <span className="ordered-badge">✓ Заказано</span>}
               <div className="body">
                 <h2>{g.name}</h2>
                 <div className="meta"><span>{players(g)} игр.</span><span>{g.timeLabel || '—'}</span>{g.difficulty && <Dots n={g.difficulty} />}</div>
@@ -181,10 +201,19 @@ export default function App() {
                   ))}
                 </div>
               )}
-              {(isUrl(open.rulesUrl) || isUrl(open.gameUrl)) && (
+              {(isUrl(open.rulesUrl) || isUrl(open.gameUrl) || SCRIPT_URL) && (
                 <div className="btn-row">
                   {isUrl(open.rulesUrl) && <a className="btn" href={open.rulesUrl} target="_blank" rel="noreferrer">Читать правила</a>}
                   {isUrl(open.gameUrl) && <a className="btn ghost" href={open.gameUrl} target="_blank" rel="noreferrer">Подробнее об игре</a>}
+                  {SCRIPT_URL && (
+                    <button
+                      className={'btn order-btn' + (isOrdered(open) || orderState[open.id] === 'sending' ? ' ghost' : '')}
+                      disabled={isOrdered(open) || orderState[open.id] === 'sending'}
+                      onClick={() => order(open)}
+                    >
+                      {isOrdered(open) ? '✓ Заказано' : orderState[open.id] === 'sending' ? 'Отправляем…' : orderState[open.id] === 'failed' ? 'Не вышло, попробуйте ещё раз' : 'Заказать игру'}
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -203,7 +232,7 @@ export default function App() {
                 <a className="btn" href={FORM_BUG} target="_blank" rel="noreferrer">Сообщить об ошибке</a>
               </div>
               <div className="about-block">
-                <p>Хотите поиграть в определённую настолку? Напишите об этом в форме или нажмите кнопку «Заказать игру» на сайте.</p>
+                <p>Хотите поиграть в определённую настолку? Напишите об этом в форме или нажмите кнопку «Заказать игру» в карточке игры.</p>
                 <a className="btn" href={FORM_ORDER} target="_blank" rel="noreferrer">Заказать игру</a>
               </div>
               <div className="about-block">

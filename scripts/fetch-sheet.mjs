@@ -71,6 +71,7 @@ const games = data.map(r => {
     gameUrl: getHttp(r, 'Ссылка на игру', 'Игра'),
     image: getImage(r),
     owner: get(r, 'Владелец'),
+    ordered: !!get(r, 'Заказ'),
     parentTitle: get(r, 'Дополнение к', 'Дополнение'),
   }
 }).filter(Boolean)
