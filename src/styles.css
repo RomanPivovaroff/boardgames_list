@@ -56,6 +56,18 @@ dt{font-size:13px;opacity:.6}dd{margin:0;font-weight:600}
 .btn-row{display:flex;gap:10px;flex-wrap:wrap}
 .btn.ghost{background:transparent;color:var(--magenta);border:2px solid var(--magenta)}
 @media (prefers-color-scheme:dark){.btn.ghost{color:#f39ac4;border-color:#f39ac4}}
+.info-btn{position:fixed;top:16px;right:16px;z-index:5;width:44px;height:44px;border-radius:50%;border:0;background:#fff;color:var(--magenta);cursor:pointer;display:grid;place-items:center;box-shadow:0 4px 18px rgba(37,32,58,.25);transition:transform .15s,box-shadow .15s}
+.info-btn:hover{transform:scale(1.08);box-shadow:0 6px 22px rgba(37,32,58,.4)}
+.cta{display:inline-block;background:#fff;color:var(--magenta);text-decoration:none;font-weight:600;padding:12px 22px;border-radius:14px;margin:0 0 24px;box-shadow:0 4px 18px rgba(37,32,58,.18);transition:transform .15s,box-shadow .15s}
+.cta:hover{transform:translateY(-1px);box-shadow:0 6px 22px rgba(37,32,58,.3)}
+.modal.about{grid-template-columns:1fr;max-width:560px}
+.about-block{margin-bottom:18px}
+.about-block p{margin:0 0 10px}
+.about-block .btn{display:inline-block}
+.contacts{opacity:.9;font-size:14px;margin:12px 0 0}
+.contacts a{color:var(--magenta);font-weight:600;text-decoration:none}
+.contacts a:hover{text-decoration:underline}
+.about-note{margin:6px 0 0;padding-top:14px;border-top:1px solid rgba(107,95,191,.18);opacity:.65;font-size:14px;text-align:center}
 .expansions{margin-top:18px}
 .expansions h3{font:500 15px/1 'Unbounded',sans-serif;margin:0 0 10px}
 .exp-card{display:flex;gap:12px;align-items:center;border:2px solid rgba(240,40,127,.45);border-radius:18px;padding:10px;text-decoration:none;color:inherit;margin-bottom:8px}

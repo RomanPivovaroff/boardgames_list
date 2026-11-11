@@ -4,6 +4,9 @@ const BASE = import.meta.env.BASE_URL
 const DEFAULT_IMG = 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcREUb6gYA6ne8sBfhrmaNRS5OVSKkkG68_AeMBL15BF4Q&s=10'
 const FALLBACK = BASE + 'placeholder.svg'
 const PER_PAGE = 24
+const FORM_BUG = 'https://docs.google.com/forms/d/e/1FAIpQLSfsUXvNeOfWM6ovJp7oLoK1g9YcchuaqFQEQk4wC-O8kpC_bA/viewform'
+const FORM_ORDER = 'https://docs.google.com/forms/d/e/1FAIpQLSfjtsGoeGJWrunl71AMuaZQ70SMXYoJi3KNEKeYK1NHFopozQ/viewform'
+const GITHUB = 'https://github.com/RomanPivovaroff/boardgames_list'
 
 // hash может прийти percent-кодированным (#/g/%D1%82...) — декодируем и сравниваем с id
 const hashId = () => {
@@ -37,6 +40,7 @@ export default function App() {
   const [genre, setGenre] = useState('')
   const [openId, setOpenId] = useState(hashId())
   const [page, setPage] = useState(1)
+  const [info, setInfo] = useState(false)
 
   const base = useMemo(() => games.filter(g => !g.parentId), [games])
 
@@ -49,6 +53,13 @@ export default function App() {
     addEventListener('hashchange', h); addEventListener('keydown', k)
     return () => { removeEventListener('hashchange', h); removeEventListener('keydown', k) }
   }, [])
+  // Escape закрывает окно «О сайте»
+  useEffect(() => {
+    if (!info) return
+    const k = e => e.key === 'Escape' && setInfo(false)
+    addEventListener('keydown', k)
+    return () => removeEventListener('keydown', k)
+  }, [info])
   // при смене фильтров — на первую страницу
   useEffect(() => { setPage(1) }, [q, count, diff, genre])
 
@@ -75,11 +86,15 @@ export default function App() {
   return (
     <>
       <header className="hero">
+        <button className="info-btn" onClick={() => setInfo(true)} aria-label="О сайте" title="О сайте">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><circle cx="12" cy="12" r="9.5" /><line x1="12" y1="11" x2="12" y2="16.2" /><line x1="12" y1="7.6" x2="12.01" y2="7.6" /></svg>
+        </button>
         <a className="logo" href="https://vk.ru/geekmo" target="_blank" rel="noreferrer" title="GEEKMÖ во ВКонтакте">
           <img src={BASE + 'logo.png'} alt="GEEKMÖ" />
         </a>
         <h1>Игротека</h1>
         <p>{base.length ? `${base.length} настолок. Найдите игру под вашу компанию.` : 'Загружаем игры…'}</p>
+        <a className="cta" href={FORM_ORDER} target="_blank" rel="noreferrer">Заказать игру</a>
         <div className="filters">
           <input type="search" placeholder="Название или описание" value={q} onChange={e => setQ(e.target.value)} />
           <select value={count} onChange={e => setCount(e.target.value)}>
@@ -172,6 +187,31 @@ export default function App() {
                   {isUrl(open.gameUrl) && <a className="btn ghost" href={open.gameUrl} target="_blank" rel="noreferrer">Подробнее об игре</a>}
                 </div>
               )}
+            </div>
+          </article>
+        </div>
+      )}
+
+      {info && (
+        <div className="overlay" onClick={() => setInfo(false)}>
+          <article className="modal about" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="О сайте">
+            <button className="x" onClick={() => setInfo(false)} aria-label="Закрыть">×</button>
+            <div className="modal-body">
+              <h2>О сайте</h2>
+              <div className="about-block">
+                <p>Нашли ошибку? Можно написать об этом тут:</p>
+                <a className="btn" href={FORM_BUG} target="_blank" rel="noreferrer">Сообщить об ошибке</a>
+              </div>
+              <div className="about-block">
+                <p>Хотите поиграть в определённую настолку? Напишите об этом в форме или нажмите кнопку «Заказать игру» на сайте.</p>
+                <a className="btn" href={FORM_ORDER} target="_blank" rel="noreferrer">Заказать игру</a>
+              </div>
+              <div className="about-block">
+                <p>Поучаствовать в разработке — репозиторий сайта на GitHub:</p>
+                <a className="btn ghost" href={GITHUB} target="_blank" rel="noreferrer">GitHub · boardgames_list</a>
+                <p className="contacts">Разработчик: <a href="https://t.me/rnpivovarov" target="_blank" rel="noreferrer">tg @rnpivovarov</a> · <a href="https://vk.ru/rnpivovarov" target="_blank" rel="noreferrer">vk rnpivovarov</a></p>
+              </div>
+              <p className="about-note">Сайт создан для улучшения игротек настольного клуба GEEKMÖ</p>
             </div>
           </article>
         </div>
