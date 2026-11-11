@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
+import { parseSheetCsv } from './parse-sheet.mjs'
 
 const BASE = import.meta.env.BASE_URL
 const DEFAULT_IMG = 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcREUb6gYA6ne8sBfhrmaNRS5OVSKkkG68_AeMBL15BF4Q&s=10'
@@ -10,6 +11,11 @@ const GITHUB = 'https://github.com/RomanPivovaroff/boardgames_list'
 // URL веб-приложения Apps Script (скрипт пишет «+» в колонку «Заказ» таблицы).
 // Вставь свой /exec URL после деплоя скрипта (см. apps-script-order.gs); пока пусто — кнопки заказа скрыты.
 const SCRIPT_URL = import.meta.env.VITE_SCRIPT_URL || ''
+// URL опубликованного CSV таблицы — запекается на сборке из секрета SHEET_CSV_URL (vite.config.js).
+// По нему иконка-синхронизация подтягивает свежие данные прямо в браузере; пусто — иконка скрыта.
+const SHEET_URL = (typeof __SHEET_CSV_URL__ !== 'undefined' && __SHEET_CSV_URL__) || ''
+// подсказки иконки-синхронизации (всплывают при наведении)
+const SYNC_TIP = { idle: 'Обновить из таблицы', loading: 'Обновляем…', ok: 'Обновлено ✓', failed: 'Не вышло. Попробуйте ещё раз' }
 
 // диапазоны фильтра по времени партии (в минутах)
 const TIME_BUCKETS = [
@@ -47,6 +53,13 @@ function Cover({ game, className, noDefault }) {
   return <img className={className} src={src} alt={game.name} loading="lazy" referrerPolicy="no-referrer" onError={onError} />
 }
 
+const IcoSync = () => (
+  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" /></svg>
+)
+const IcoOk = () => (
+  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="4.5 12.5 9.7 17.5 19.5 7" /></svg>
+)
+
 const Dots = ({ n }) => (
   <span className="dots" title={`Сложность ${n} из 5`}>
     {[1, 2, 3, 4, 5].map(i => <i key={i} className={i <= n ? 'on' : ''} />)}
@@ -68,6 +81,8 @@ export default function App() {
   const [orderedIds, setOrderedIds] = useState(() => new Set())
   const [orderState, setOrderState] = useState({})
   const [copied, setCopied] = useState(false)
+  // иконка-синхронизация: idle | loading | ok | failed
+  const [syncState, setSyncState] = useState('idle')
 
   const base = useMemo(() => games.filter(g => !g.parentId), [games])
 
@@ -89,6 +104,12 @@ export default function App() {
   }, [info])
   // при смене фильтров — на первую страницу
   useEffect(() => { setPage(1) }, [q, count, diff, genre, time, ord])
+  // «Обновлено ✓» / «Не вышло…» сами возвращаются к обычной иконке
+  useEffect(() => {
+    if (syncState !== 'ok' && syncState !== 'failed') return
+    const t = setTimeout(() => setSyncState('idle'), 2500)
+    return () => clearTimeout(t)
+  }, [syncState])
 
   const genres = useMemo(() => [...new Set(games.flatMap(g => g.genres))].sort(), [games])
   // поиск ищет и по дополнениям — если доп совпал, показываем базовую игру
@@ -108,6 +129,21 @@ export default function App() {
   const shown = list.slice((cur - 1) * PER_PAGE, cur * PER_PAGE)
 
   const open = games.find(g => g.id === openId)
+
+  // синхронизация: тянем тот же опубликованный CSV, что и на сборке, прямо в браузере
+  const sync = () => {
+    if (!SHEET_URL || syncState === 'loading') return
+    setSyncState('loading')
+    fetch(SHEET_URL + (SHEET_URL.includes('?') ? '&' : '?') + '_=' + Date.now(), { cache: 'no-store' })
+      .then(r => { if (!r.ok) throw 0; return r.text() })
+      .then(t => {
+        const list = parseSheetCsv(t)
+        if (!list.length) throw 0
+        setGames(list)
+        setSyncState('ok')
+      })
+      .catch(() => setSyncState('failed'))
+  }
 
   const goto = p => { setPage(p); window.scrollTo(0, 0) }
   // заказ: POST на Apps Script, который ставит «+» в колонку «Заказ»; плашка ставится сразу, без ожидания ответа
@@ -136,9 +172,22 @@ export default function App() {
   return (
     <>
       <header className="hero">
-        <button className="info-btn" onClick={() => setInfo(true)} aria-label="О сайте" title="О сайте">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><circle cx="12" cy="12" r="9.5" /><line x1="12" y1="11" x2="12" y2="16.2" /><line x1="12" y1="7.6" x2="12.01" y2="7.6" /></svg>
-        </button>
+        <div className="fab-stack">
+          {SHEET_URL && (
+            <button
+              className={'sync-btn' + (syncState !== 'idle' ? ' ' + syncState : '')}
+              onClick={sync}
+              data-tip={SYNC_TIP[syncState]}
+              aria-label={SYNC_TIP[syncState]}
+              aria-busy={syncState === 'loading'}
+            >
+              {syncState === 'ok' ? <IcoOk /> : <IcoSync />}
+            </button>
+          )}
+          <button className="info-btn" onClick={() => setInfo(true)} aria-label="О сайте" title="О сайте">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><circle cx="12" cy="12" r="9.5" /><line x1="12" y1="11" x2="12" y2="16.2" /><line x1="12" y1="7.6" x2="12.01" y2="7.6" /></svg>
+          </button>
+        </div>
         <a className="logo" href="https://vk.ru/geekmo" target="_blank" rel="noreferrer" title="GEEKMÖ во ВКонтакте">
           <img src={BASE + 'logo.png'} alt="GEEKMÖ" />
         </a>
@@ -146,23 +195,23 @@ export default function App() {
         <p>{base.length ? `${base.length} настолок. Найдите игру под вашу компанию.` : 'Загружаем игры…'}</p>
         <div className="filters">
           <input type="search" placeholder="Название или описание" value={q} onChange={e => setQ(e.target.value)} />
-          <select value={count} onChange={e => setCount(e.target.value)}>
+          <select className="f-count" value={count} onChange={e => setCount(e.target.value)}>
             <option value="">Сколько игроков</option>
             {[1, 2, 3, 4, 5, 6, 7, 8].map(n => <option key={n} value={n}>{n}</option>)}
           </select>
-          <select value={diff} onChange={e => setDiff(e.target.value)}>
+          <select className="f-diff" value={diff} onChange={e => setDiff(e.target.value)}>
             <option value="">Любая сложность</option>
             {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n} из 5</option>)}
           </select>
-          <select value={time} onChange={e => setTime(e.target.value)} aria-label="Время партии">
+          <select className="f-time" value={time} onChange={e => setTime(e.target.value)} aria-label="Время партии">
             <option value="">Время партии</option>
             {TIME_BUCKETS.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
           </select>
-          <select value={ord} onChange={e => setOrd(e.target.value)} aria-label="Заказ">
+          <select className="f-ord" value={ord} onChange={e => setOrd(e.target.value)} aria-label="Заказ">
             <option value="">Все игры</option>
             <option value="1">Только заказанные</option>
           </select>
-          <select value={genre} onChange={e => setGenre(e.target.value)}>
+          <select className="f-genre" value={genre} onChange={e => setGenre(e.target.value)}>
             <option value="">Любой жанр</option>
             {genres.map(g => <option key={g}>{g}</option>)}
           </select>

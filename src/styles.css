@@ -13,8 +13,16 @@ body{margin:0;background:var(--paper);color:var(--ink);font:400 16px/1.5 'Golos 
 .logo:hover{box-shadow:0 4px 18px rgba(37,32,58,.35)}
 h1{font:700 clamp(40px,8vw,84px)/1 'Unbounded',sans-serif;margin:0 auto 12px;letter-spacing:-.02em}
 .hero p{margin-block:0 24px;font-size:18px;opacity:.92}
-.filters{display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr 1fr;gap:10px}
+/* фильтры: поиск растягивается на свободное место, селекты — по содержимому, чтобы подписи влезали целиком */
+.filters{display:flex;flex-wrap:wrap;gap:10px}
 .filters input,.filters select{padding:12px 14px;border:0;border-radius:14px;font:inherit;background:#fff;color:#25203a;min-width:0}
+.filters input{flex:3 1 260px;min-width:220px}
+.filters select{flex:0 1 auto}
+.filters .f-count{min-width:186px}
+.filters .f-diff{min-width:186px}
+.filters .f-time{min-width:176px}
+.filters .f-ord{min-width:200px}
+.filters .f-genre{flex:1 1 200px}
 :focus-visible{outline:3px solid var(--pink);outline-offset:2px}
 main{max-width:1100px;margin:32px auto;padding:0 20px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:18px}
@@ -59,8 +67,20 @@ dt{font-size:13px;opacity:.6}dd{margin:0;font-weight:600}
 .btn-row{display:flex;gap:10px;flex-wrap:wrap}
 .btn.ghost{background:transparent;color:var(--magenta);border:2px solid var(--magenta)}
 @media (prefers-color-scheme:dark){.btn.ghost{color:#f39ac4;border-color:#f39ac4}}
-.info-btn{position:fixed;top:16px;right:16px;z-index:5;width:44px;height:44px;border-radius:50%;border:0;background:#fff;color:var(--magenta);cursor:pointer;display:grid;place-items:center;box-shadow:0 4px 18px rgba(37,32,58,.25);transition:transform .15s,box-shadow .15s}
+/* плавающие иконки справа сверху: синхронизация (если задан URL таблицы) + «О сайте» */
+.fab-stack{position:fixed;top:16px;right:16px;z-index:5;display:flex;gap:10px}
+.info-btn{width:44px;height:44px;border-radius:50%;border:0;background:#fff;color:var(--magenta);cursor:pointer;display:grid;place-items:center;box-shadow:0 4px 18px rgba(37,32,58,.25);transition:transform .15s,box-shadow .15s}
 .info-btn:hover{transform:scale(1.08);box-shadow:0 6px 22px rgba(37,32,58,.4)}
+.sync-btn{position:relative;width:44px;height:44px;border-radius:50%;border:0;background:#fff;color:var(--violet);cursor:pointer;display:grid;place-items:center;box-shadow:0 4px 18px rgba(37,32,58,.25);transition:transform .15s,box-shadow .15s}
+.sync-btn:hover{transform:scale(1.08);box-shadow:0 6px 22px rgba(37,32,58,.4)}
+.sync-btn.loading svg{animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.sync-btn.loading svg{animation:none}}
+.sync-btn.ok{color:#1c9e5a}
+.sync-btn.failed{color:#d43c3c}
+/* подсказка, всплывающая при наведении на иконку синхронизации */
+.sync-btn::after{content:attr(data-tip);position:absolute;top:calc(100% + 9px);right:0;background:#1f1230;color:#fff;border-radius:10px;padding:8px 12px;font:600 13px/1.3 'Golos Text',system-ui,sans-serif;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .15s;box-shadow:0 6px 20px rgba(0,0,0,.3)}
+.sync-btn:hover::after,.sync-btn:focus-visible::after{opacity:1}
 .ordered-badge{position:absolute;top:10px;left:10px;background:var(--card);border:2px solid var(--pink);color:var(--magenta);border-radius:99px;padding:4px 10px;font:600 12px/1 'Golos Text',system-ui,sans-serif;box-shadow:0 2px 10px rgba(194,0,107,.25)}
 @media (prefers-color-scheme:dark){.ordered-badge{color:#f39ac4;border-color:#f39ac4}}
 .btn:disabled{opacity:.55;cursor:default}
@@ -82,6 +102,7 @@ dt{font-size:13px;opacity:.6}dd{margin:0;font-weight:600}
 .exp-info small{opacity:.7;font-size:12px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .x{position:absolute;top:10px;right:14px;width:36px;height:36px;border-radius:50%;border:0;background:rgba(255,255,255,.9);color:#25203a;font-size:22px;cursor:pointer;z-index:1}
 @media (max-width:700px){
-  .filters{grid-template-columns:1fr 1fr}.filters input{grid-column:1/-1}
+  .filters input{flex:1 1 100%}
+  .filters .f-genre{flex:1 1 100%}
   .modal{grid-template-columns:1fr}.modal-cover{min-height:0;aspect-ratio:16/10}
 }
