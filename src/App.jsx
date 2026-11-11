@@ -9,7 +9,25 @@ const FORM_ORDER = 'https://docs.google.com/forms/d/e/1FAIpQLSfjtsGoeGJWrunl71AM
 const GITHUB = 'https://github.com/RomanPivovaroff/boardgames_list'
 // URL веб-приложения Apps Script (скрипт пишет «+» в колонку «Заказ» таблицы).
 // Вставь свой /exec URL после деплоя скрипта (см. apps-script-order.gs); пока пусто — кнопки заказа скрыты.
-const SCRIPT_URL = import.meta.env.VITE_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbwwZPk433Ch07_NJwqodoHHABTGLocufEA_JkUYUes17j9fw_zzbtkHDcN2jAGbHynX/exec'
+const SCRIPT_URL = import.meta.env.VITE_SCRIPT_URL || ''
+
+// диапазоны фильтра по времени партии (в минутах)
+const TIME_BUCKETS = [
+  ['0-30', 'до 30 мин'],
+  ['30-60', '30–60 мин'],
+  ['60-90', '60–90 мин'],
+  ['90-120', '90–120 мин'],
+  ['120+', 'больше 2 часов'],
+]
+// влезает ли игра в выбранный диапазон: для конечных — целиком внутри, для «больше 2 часов» — хотя бы частично
+const timeMatch = (g, time) => {
+  if (!time) return true
+  const lo = g.timeMin ?? g.timeMax, hi = g.timeMax ?? g.timeMin
+  if (lo == null) return false
+  if (time === '120+') return (hi ?? lo) >= 120
+  const [bLo, bHi] = time.split('-').map(Number)
+  return lo >= bLo && (hi ?? lo) <= bHi
+}
 
 // hash может прийти percent-кодированным (#/g/%D1%82...) — декодируем и сравниваем с id
 const hashId = () => {
@@ -41,12 +59,15 @@ export default function App() {
   const [count, setCount] = useState('')
   const [diff, setDiff] = useState('')
   const [genre, setGenre] = useState('')
+  const [time, setTime] = useState('')
+  const [ord, setOrd] = useState('')
   const [openId, setOpenId] = useState(hashId())
   const [page, setPage] = useState(1)
   const [info, setInfo] = useState(false)
   // заказы: orderedIds — подтверждённые/оптимистичные, orderState — «sending»/«failed» на время запроса
   const [orderedIds, setOrderedIds] = useState(() => new Set())
   const [orderState, setOrderState] = useState({})
+  const [copied, setCopied] = useState(false)
 
   const base = useMemo(() => games.filter(g => !g.parentId), [games])
 
@@ -67,17 +88,20 @@ export default function App() {
     return () => removeEventListener('keydown', k)
   }, [info])
   // при смене фильтров — на первую страницу
-  useEffect(() => { setPage(1) }, [q, count, diff, genre])
+  useEffect(() => { setPage(1) }, [q, count, diff, genre, time, ord])
 
   const genres = useMemo(() => [...new Set(games.flatMap(g => g.genres))].sort(), [games])
   // поиск ищет и по дополнениям — если доп совпал, показываем базовую игру
   const hay = g => (g.name + ' ' + g.publisher + ' ' + g.description + ' ' + (g.owner || '') + ' ' + (g.expansions || []).map(e => e.name + ' ' + e.description + ' ' + e.publisher).join(' ')).toLowerCase()
+  const isOrdered = g => g.ordered || orderedIds.has(g.id)
   const list = useMemo(() => base.filter(g =>
     (!q || hay(g).includes(q.toLowerCase())) &&
     (!count || (g.playersMin <= +count && +count <= (g.playersMax || g.playersMin))) &&
     (!diff || g.difficulty === +diff) &&
+    timeMatch(g, time) &&
+    (!ord || isOrdered(g)) &&
     (!genre || g.genres.includes(genre))
-  ), [base, games, q, count, diff, genre])
+  ), [base, games, q, count, diff, genre, time, ord, orderedIds])
 
   const pages = Math.max(1, Math.ceil(list.length / PER_PAGE))
   const cur = Math.min(page, pages)
@@ -86,7 +110,6 @@ export default function App() {
   const open = games.find(g => g.id === openId)
 
   const goto = p => { setPage(p); window.scrollTo(0, 0) }
-  const isOrdered = g => g.ordered || orderedIds.has(g.id)
   // заказ: POST на Apps Script, который ставит «+» в колонку «Заказ»; плашка ставится сразу, без ожидания ответа
   const order = g => {
     if (!SCRIPT_URL || isOrdered(g) || orderState[g.id] === 'sending') return
@@ -99,6 +122,13 @@ export default function App() {
         setOrderState(s => ({ ...s, [g.id]: 'failed' }))
         setTimeout(() => setOrderState(clear), 4000)
       })
+  }
+  // список заказанных игр: кнопка «Скопировать список» кладёт его в буфер обмена
+  const copyList = () => {
+    const lines = base.filter(isOrdered).map((g, i) => `${i + 1}. ${g.name}${g.owner ? ' — ' + g.owner : ''}`)
+    navigator.clipboard.writeText('Заказ на игротеку:\n' + lines.join('\n'))
+      .then(() => { setCopied(true); setTimeout(() => setCopied(false), 2500) })
+      .catch(() => {})
   }
   // номера страниц: первая, последняя и соседние с текущей, между ними «…»
   const nums = [...new Set([1, pages, cur - 1, cur, cur + 1].filter(p => p >= 1 && p <= pages))].sort((a, b) => a - b)
@@ -124,6 +154,14 @@ export default function App() {
             <option value="">Любая сложность</option>
             {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n} из 5</option>)}
           </select>
+          <select value={time} onChange={e => setTime(e.target.value)} aria-label="Время партии">
+            <option value="">Время партии</option>
+            {TIME_BUCKETS.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
+          </select>
+          <select value={ord} onChange={e => setOrd(e.target.value)} aria-label="Заказ">
+            <option value="">Все игры</option>
+            <option value="1">Только заказанные</option>
+          </select>
           <select value={genre} onChange={e => setGenre(e.target.value)}>
             <option value="">Любой жанр</option>
             {genres.map(g => <option key={g}>{g}</option>)}
@@ -132,6 +170,14 @@ export default function App() {
       </header>
 
       <main>
+        {ord === '1' && (
+          <div className="ordered-bar">
+            <span>Заказанных игр: {base.filter(isOrdered).length}</span>
+            {base.some(isOrdered) && (
+              <button className="copy-btn" onClick={copyList}>{copied ? 'Скопировано ✓' : 'Скопировать список'}</button>
+            )}
+          </div>
+        )}
         {games.length > 0 && list.length === 0 && <p className="empty">Ничего не найдено. Попробуйте убрать один из фильтров.</p>}
         <div className="grid">
           {shown.map(g => (

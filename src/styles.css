@@ -13,7 +13,7 @@ body{margin:0;background:var(--paper);color:var(--ink);font:400 16px/1.5 'Golos 
 .logo:hover{box-shadow:0 4px 18px rgba(37,32,58,.35)}
 h1{font:700 clamp(40px,8vw,84px)/1 'Unbounded',sans-serif;margin:0 auto 12px;letter-spacing:-.02em}
 .hero p{margin-block:0 24px;font-size:18px;opacity:.92}
-.filters{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:10px}
+.filters{display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr 1fr;gap:10px}
 .filters input,.filters select{padding:12px 14px;border:0;border-radius:14px;font:inherit;background:#fff;color:#25203a;min-width:0}
 :focus-visible{outline:3px solid var(--pink);outline-offset:2px}
 main{max-width:1100px;margin:32px auto;padding:0 20px}
@@ -30,6 +30,9 @@ h2{font:500 16px/1.25 'Unbounded',sans-serif;margin:0 0 10px}
 .dots{display:inline-flex;gap:3px}.dots i{width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.2}
 .dots i.on{background:var(--magenta);opacity:1}
 .empty{text-align:center;padding:60px 0;opacity:.7}
+.ordered-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;background:rgba(107,95,191,.1);border:1px solid rgba(107,95,191,.25);border-radius:14px;padding:10px 16px;margin:0 0 18px;font-weight:600}
+.copy-btn{border:0;border-radius:12px;padding:10px 16px;background:var(--grad);color:#fff;font:600 14px/1 'Golos Text',system-ui,sans-serif;cursor:pointer}
+.copy-btn:hover{box-shadow:0 4px 14px rgba(194,0,107,.35)}
 .pager{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;align-items:center;margin:30px 0 0}
 .pager button{border:1px solid rgba(107,95,191,.3);background:var(--card);color:inherit;border-radius:12px;min-width:42px;height:42px;padding:0 12px;font:600 15px/1 'Golos Text',system-ui,sans-serif;cursor:pointer}
 .pager button:hover:not(:disabled):not(.on){border-color:var(--magenta);box-shadow:0 0 0 1px var(--magenta)}
