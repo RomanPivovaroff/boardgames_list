@@ -19,6 +19,7 @@ jobs:
       - run: npm run build
         env:
           SHEET_CSV_URL: ${{ secrets.SHEET_CSV_URL }}
+          VITE_SCRIPT_URL: ${{ secrets.VITE_SCRIPT_URL }}
           BASE: /${{ github.event.repository.name }}/
       - uses: actions/upload-pages-artifact@v3
         with: { path: dist }
